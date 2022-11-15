@@ -1,6 +1,7 @@
 package com.hospitalsystem.Services;
 
 import com.hospitalsystem.Models.ApiResponse;
+import com.hospitalsystem.Models.Element;
 import com.hospitalsystem.Models.Hospital;
 import com.hospitalsystem.Models.HospitalElement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,15 +53,27 @@ public class HospitalService {
 
         List<Hospital> hospitals = find_by_distance(latitude,longitude,distance);
         List<HospitalElement> hospitals_within_range = new ArrayList<>();
-        for(Hospital hospital:hospitals){
-            String request_url = api_url+"?origins="+latitude+","+longitude+"&destinations="+hospital.getGeoLocation().getLatitude()+","+hospital.getGeoLocation().getLongitude()+"&departure_time=now&key="+api_key;
-            ResponseEntity<ApiResponse> apiResponse = restTemplate.getForEntity(request_url,ApiResponse.class);
-//            System.out.println(apiResponse);
-            ApiResponse response = apiResponse.getBody();
-            if(response.getRows().get(0).getElements().get(0).getDistance().getValue()<=(distance*1000)){
-                hospitals_within_range.add(new HospitalElement(hospital,response.getRows().get(0).getElements().get(0)));
+        String prefix = api_url+"?origins="+latitude+","+longitude+"&destinations=";
+        String suffix = "&departure_time=now&key="+api_key;
+        String destinations = "";
+
+        for(int i=0;i<hospitals.size();i++){
+            Hospital hospital = hospitals.get(i);
+            String destination = hospital.getGeoLocation().getLatitude()+","+hospital.getGeoLocation().getLongitude()+(i== hospitals.size()-1 ? "" : "|");
+            destinations += destination;
+        }
+
+        String request_url = prefix+destinations+suffix;
+        ResponseEntity<ApiResponse> apiResponse = restTemplate.getForEntity(request_url,ApiResponse.class);
+        ApiResponse response = apiResponse.getBody();
+
+        List<Element> hospitalDistances = response.getRows().get(0).getElements();
+        for(int i=0;i<hospitalDistances.size();i++){
+            if(hospitalDistances.get(i).getDistance().getValue()<=(distance*1000)){
+                hospitals_within_range.add(new HospitalElement(hospitals.get(i),hospitalDistances.get(i)));
             }
         }
+
         return hospitals_within_range;
     }
 
